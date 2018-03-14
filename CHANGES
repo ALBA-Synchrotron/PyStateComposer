@@ -1,0 +1,110 @@
+7.1 - Jan 2017
+
+Solve bug in read_DevStates
+
+7.0 - October 2016
+
+Override getXAttr to ignore
+attributes from devices when
+state in BadStates property list.
+
+
+VERSION = 6.5beta
+
+ONGOING
+
+Solved bugs on parsing attributes and setting default property values
+
+6.4 - October 2014
+
+Requires Fandango 11.0
+Init() method modified to update all properties w/out stopping the device.
+
+6.3 - May 2014
+
+MultiHost methods from Fandango caused problems to 6.2 release
+@todo: MultiHost has been forced to False until next release
+
+6.2 - November 2013
+
+Solved bug in evaluateStates() that may have caused periodic switch to UNKNOWN state.
+With new Fandango 10.9 it provides access to other controls sytems using XATTR('host:10000/a/b/c/d')
+
+
+6.1 - October 2013
+
+Added VersionNumber attribute
+
+6.0 - August 2013
+-----------------------------
+UseTaurus property makes taurus completely optional
+EvaluateStates modified to perform dead-thread tests
+Added taurus from fandango.tango to locals; to have access to taurus.Factory() if needed
+Solved bug on error event received
+
+February 2012 5.6
+-----------------------------
+Using DynamicDS.event_received to manage incoming events
+Using read_state_attribute method instead of lambdas
+Caseless lists for all arrays
+
+December 2011 4.7
+-----------------------------
+Added SortLists property to manage how DEVICES/STATES lists are generated.
+Adapted to PyTango7.2.2 (staticmethods not needed anymore)
+
+October 2011 4.6
+-------------------------
+Traces massively reduced
+Added IGNORED list in locals
+patched property overwriting
+FullTangoInheritance moved out of main
+
+September 2011 4.5
+-------------------------
+Events and State Machines Improved
+Forced evaluateStates() every 5*PollingCycle seconds
+
+PyStateComposer 4.3
+-------------------------
+Changed the way how properties reading is managed, now get_DynDS_properties replaces get_device_properties
+IgnoreList is now intialized by an updateDynamicAttributes call.
+Solved bug in state attributes if argin is a tuple.
+
+PyStateComposer 4.2
+-------------------------
+Devices in IgnoreList are ignored to compute the composed state; but included in DevStates arrays for DynamicAttributes generation.
+All internal device lists are now caseless.
+
+PyStateComposer 4.0
+-------------------------
+Completely rebuild to use tau.core and Dev4Tango
+All update threads removed, only relying on events from tau/dev4tango
+Only 2 caches; AttributeCache with attribute values and DevicesDict with states values
+Allowing DynamicStates and DynamicStatus
+
+Bliss 3.6, 9th November
+-------------------------
+CheckDependencies=False property added to avoid recursive exception throwing
+
+Bliss 3.5, 13th October
+-------------------------
+DeviceThreadDict is now 1 instance per class (shared between devices)
+
+
+Bliss 3.4, Sept 16th 2010
+-------------------------
+
+Bug solved in subComposers evaluation
+Added functional.join method to dynamic attributes
+
+Bliss 3.3, Sept 14th 2010
+-------------------------
+
+Added IgnoreList property to filter those devices that should not be used for State Composing.
+Added dynamic attributes like DOMAIN_FAMILY_MEMBER for each device state.
+
+Bliss 3.0, July 10th
+--------------------
+
+Added hierarchical composing
