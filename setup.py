@@ -16,7 +16,7 @@ To install as local package:
 -------------------------------------------------------------------------------
 """
 
-print(__doc__)
+# print(__doc__)
 
 version = open('VERSION').read().strip()
 scripts = ['./scripts/PyStateComposer']
