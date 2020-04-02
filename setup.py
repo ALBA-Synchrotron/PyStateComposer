@@ -16,31 +16,23 @@ To install as local package:
 -------------------------------------------------------------------------------
 """
 
-print(__doc__)
+# print(__doc__)
 
 version = open('VERSION').read().strip()
-scripts = ['PyStateComposer']
+scripts = ['./scripts/PyStateComposer']
 license = 'GPL-3.0'
-
-package_dir = {
-    'PyStateComposer': '.',
-}
-packages = package_dir.keys()
 
 package_data = {
     '': ['VERSION'],
 }
 
-packages = package_dir.keys()
-
-
-setup(name = 'tangods-pystatecomposer',
-      version = version,
-      license = license,
-      description = 'Tango device for calculating new states and attributes from existing Tango Device Servers',
-      packages = packages,
-      package_dir= package_dir,
-      scripts = scripts,
-      include_package_data = True,
-      package_data = package_data
+setup(name='tangods-PyStateComposer',
+      version=version,
+      license=license,
+      description='Tango device for calculating new states and attributes '
+                  'from existing Tango Device Servers',
+      packages=find_packages(),
+      scripts=scripts,
+      include_package_data=True,
+      package_data=package_data
      )
