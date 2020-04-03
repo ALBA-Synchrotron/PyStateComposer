@@ -29,8 +29,13 @@ requirements:
 
 
 test:
-  import:
-    - PyStateComposer
+  requires:
+    - fandango
+    - pytango
+  imports:
+    {% for pack in data['packages'] %}
+    - {{pack}}
+    {% endfor %}
 
 about:
   home: {{ data.get('url')}}
