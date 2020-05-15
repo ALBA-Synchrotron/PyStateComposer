@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# This script will need the latest fandango version to be installed
+# DynamicDS launcher must be in the PATH
+# srubio@cells.es, 2017
+
+DS=$(basename $0)
+
+if [ -e $(which DynamicDS) ] ; then
+  DynamicDS $DS/$*
+else
+  echo "DynamicDS launcher is not available, searching $DS in PYTHONPATH"
+  cd $(python -c "import imp;print(imp.find_module('$DS')[0])")
+  python $DS.py $*
+fi 
