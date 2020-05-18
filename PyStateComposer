@@ -1,15 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 
-# This script will need the latest fandango version to be installed
-# DynamicDS launcher must be in the PATH
-# srubio@cells.es, 2017
+. alba_blissrc
 
-DS=$(basename $0)
+cd /usr/share/tangods-pystatecomposer/PyStateComposer/
+script /dev/null
+# Or just run sudo -u bob script -q -c 'screen -dr myscreen' /dev/null
+screen -dm -S PyStateComposer-$1 python PyStateComposer.py $1 $2
 
-if [ -e $(which DynamicDS) ] ; then
-  DynamicDS $DS/$*
-else
-  echo "DynamicDS launcher is not available, searching $DS in PYTHONPATH"
-  cd $(python -c "import imp;print(imp.find_module('$DS')[0])")
-  python $DS.py $*
-fi 

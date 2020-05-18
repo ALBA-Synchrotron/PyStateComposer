@@ -28,13 +28,13 @@ package_dir = {
 packages = package_dir.keys()
 
 package_data = {
-    '': ['VERSION'],
+    '': [version],
 }
 
 packages = package_dir.keys()
 
 
-setup(name = 'tangods-pystatecomposer',
+setup(name = 'pystatecomposer',
       version = version,
       license = license,
       description = 'Tango device for calculating new states and attributes from existing Tango Device Servers',
