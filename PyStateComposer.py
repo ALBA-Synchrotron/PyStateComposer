@@ -62,8 +62,16 @@ if "Device_4Impl" not in dir(PyTango):
     PyTango.DeviceClass = PyTango.PyDeviceClass
     PyTango.Device_4Impl = PyTango.Device_3Impl
     
-try: __RELEASE__ = (l for l in open(os.path.dirname(os.path.abspath(__file__))+'/CHANGES').readlines() if l.startswith('VERSION')).next().split('=',1)[-1].strip()
-except Exception,e: __RELEASE__ = str(e)
+import fandango.tango.defaults
+fandango.tango.defaults.KEEP_PROXIES = True
+    
+try: 
+    __RELEASE__ = (l for l in open(os.path.dirname(os.path.abspath(__file__))
+        +'/CHANGES').readlines() if l.startswith('VERSION')
+        ).next().split('=',1)[-1].strip()
+except Exception,e: 
+    __RELEASE__ = str(e)
+    
 print '> ',__RELEASE__
 
 """
@@ -286,7 +294,7 @@ class PyStateComposer(PyTango.Device_4Impl):
                     if not self.dyn_states:
                         self.cout('info','State changed! %s -> %s' % (old_state,new_state))
                         self.set_state(new_state)
-                        self.push_change_event('state')                    
+                        #self.push_change_event('state')  #Already done by DynamicDS.set_state()         
                 
                 status = '%s is in %s State since %s.\n'%(self.get_name(),self.get_state(),time.ctime(self.LastStateUpdate))
                 status += 'DevicesList:\n'
