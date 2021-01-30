@@ -57,13 +57,18 @@ from fandango.tango import fakeAttributeValue,parse_tango_model
 
 from fandango import CaselessList
 
-if "Device_4Impl" not in dir(PyTango):
-    print 'Adapting to PyTango7 ...'
-    PyTango.DeviceClass = PyTango.PyDeviceClass
-    PyTango.Device_4Impl = PyTango.Device_3Impl
+#if "Device_4Impl" not in dir(PyTango):
+    #print 'Adapting to PyTango7 ...'
+    #PyTango.DeviceClass = PyTango.PyDeviceClass
+    #PyTango.Device_4Impl = PyTango.Device_3Impl
     
 import fandango.tango.defaults
 fandango.tango.defaults.KEEP_PROXIES = True
+
+from fandango.callbacks import EventListener,EventSource,EventThread
+EventThread.MinWait = 1e-2 #1e-4
+EventThread.DEFAULT_PERIOD_ms = 300 #0.1
+EventSource.get_thread().setLogLevel('DEBUG')
     
 try: 
     __RELEASE__ = (l for l in open(os.path.dirname(os.path.abspath(__file__))
@@ -95,7 +100,7 @@ print '> ',__RELEASE__
 #==================================================================
 
 
-class PyStateComposer(PyTango.Device_4Impl):
+class PyStateComposer(PyTango.LatestDeviceImpl):
 
     #--------- Add you global variables here --------------------------
     '''   @class PyStateComposer
@@ -135,36 +140,48 @@ class PyStateComposer(PyTango.Device_4Impl):
         This method manages the events received from external attributes.
         """
         self.last_event_received = time.time()
+        etype = fakeEventType[type_] if type_ in fakeEventType else type_
+        self.info('In PyStateComposer.event_received(%s(%s),%s,%s)'
+            %(type(source).__name__,source,etype,
+              type(attr_value).__name__))
+        #return
         DynamicDS.event_received(self,source,type_,attr_value)
         self.cout('info','-'*80)
-        self.cout('info','In PyStateComposer.event_received(%s(%s),%s,%s)'%(type(source).__name__,source,fakeEventType[type_],type(attr_value).__name__))
         try:
             source = fandango.tango.get_model_name(source)
             self.cout('debug','source = %s'%source)
-            if 'Config'==fakeEventType[type_]:
+            if etype in ('Config','attr_conf','config'):
                 self.cout('debug','Config event ignored ... %s'%source)
             elif '/' not in source:
                 self.cout('info','Not-tango names ignored ... %s'%source)
             else:
                 params = parse_tango_model(source)
                 if params:
-                    tango_host,dev_name,att,attr_name = '%s:%s'%(params['host'],params['port']),\
-                        params['devicename'],params['attributename'],'%s/%s'%(params['devicename'],params['attributename'])
+                    tango_host,dev_name,att,attr_name = (
+                        '%s:%s'%(params['host'],params['port']),
+                        params['devicename'],params['attributename'],
+                        '%s/%s'%(params['devicename'],params['attributename']))
                 else: 
                     self.cout('error','Unparsable source: %s => %s'%(source,params))
                     tango_host,dev_name,att,attr_name = '','',None,''
-                if 'Error'==fakeEventType[type_] or not hasattr(attr_value,'value'):
+                    
+                if str(etype).lower()=='error' or not hasattr(attr_value,'value'):
                     self.cout('warning','%s Error received: %s'%(attr_name,attr_value))
-                    self.AttributeCache[attr_name] = fakeAttributeValue(attr_name,attr_value,time.time(),error=True)
+                    self.AttributeCache[attr_name] = \
+                        fakeAttributeValue(attr_name,attr_value,time.time(),error=True)
                     value = None
                 else:
                     self.AttributeCache[attr_name] = attr_value # I keep value/time/quality struct
                     value = attr_value.value
-                if att == 'state' and (self.DevicesDict.get(dev_name)!=value or 'Error'==fakeEventType[type_]):
+                    
+                if att == 'state' and (self.DevicesDict.get(dev_name)!=value 
+                        or str(etype).lower()=='error'):
                     self.DevicesDict[dev_name] = fun.notNone(value,PyTango.DevState.UNKNOWN)
-                    if self.__initialized: self.evaluateStates()
+                    if self.__initialized: 
+                        self.evaluateStates()
         except:
             self.cout('error','Exception in event_received(%s,%s,...):\n%s'%(source,type_,traceback.format_exc()))
+            
         self.cout('info','Out of PyStateComposer.event_received()')
         return
 
@@ -172,7 +189,7 @@ class PyStateComposer(PyTango.Device_4Impl):
         #Updating _locals dictionary
         if hasattr(self,'SubComposers') and self.SubComposers:
             for composer in sorted(self.SubComposers):
-                self.debug('Importing states from composer: %s ' % (composer))
+                self.info('Importing states from composer: %s ' % (composer))
                 devs = self.getXAttr(composer+'/DevicesList')
                 states = self.getXAttr(composer+'/StatesList')
                 try:
@@ -238,7 +255,8 @@ class PyStateComposer(PyTango.Device_4Impl):
                 self.cout('warning','DevicesDict is empty! State (%s) will not be updated.'%old_state)
             else:
                 #Discarding devices in IgnoreList property
-                self.IgnoreList = [a.lower() for a in self.IgnoreList if a.strip() and not a.startswith('#')]
+                self.IgnoreList = [a.lower() for a in self.IgnoreList 
+                                   if a.strip() and not a.startswith('#')]
                 for k,v in self.DevicesDict.items():
                     if not fun.matchAny(self.IgnoreList,k.lower()):
                         states.append(v)
@@ -365,11 +383,24 @@ class PyStateComposer(PyTango.Device_4Impl):
                     self.AddDeviceToList(d)
             else:
                 dev_name = (fun.isSequence(argin) and argin and argin[0] or argin).lower()
-                assert '/' in dev_name,'%s is not a valid device name!'%dev_name
-                assert dev_name!=self.get_name().lower(),"PyStateComposer doesn't allow recursive composing."
+                if '/' not in dev_name:
+                    raise Exception('%s is not a valid device name!' % dev_name)
+                if self.get_name().lower() in dev_name:
+                    raise Exception("Recursive composing is not allowed.")
+                if dev_name in self.DevicesDict:
+                    raise Exception("%s already subscribed" % dev_name)
+                if fun.matchAny(self.IgnoreList,dev_name):
+                    return False
                 try:
                     self.DevicesDict[dev_name] = PyTango.DevState.INIT
-                    self.subscribe_external_attributes(dev_name,['State'])
+                    #self.subscribe_external_attributes(dev_name,['State'])
+                    aname = dev_name + '/state'
+                    at = fandango.callbacks.EventSource(aname,log_level='INFO',
+                        keeptime=250,polling_period=self.PollingCycle)
+                    at.setLogLevel('DEBUG')
+                    self.info('Adding Listener to %s(%s)'%(type(at),aname))
+                    at.addListener(self.event_received,use_polling=self.PollingCycle)
+                    self.EventSources[aname] = at
                     self.create_state_attribute(argin)
                     return True
                 except:
@@ -413,8 +444,9 @@ class PyStateComposer(PyTango.Device_4Impl):
         
         #Order Matters!
         #self.get_device_properties(self.get_device_class())
-        try: DynamicDS.init_device(self)
-        except: self.get_DynDS_properties()
+        #try: 
+        DynamicDS.init_device(self)
+        #except: self.get_DynDS_properties()
         
         #self.setLogLevel(self.LogLevel if hasattr(self,'LogLevel') else 'INFO')
         self.set_state(PyTango.DevState.INIT)
@@ -433,6 +465,7 @@ class PyStateComposer(PyTango.Device_4Impl):
         if not self.__initialized:
             self.DevicesDict = fandango.SortedDict()#fandango.CaselessDict()
             self.AttributeCache = fandango.CaselessDict()
+            self.EventSources = fandango.CaselessDict()
             self.History = []
             self.LastStateCheck = 0.
             self.LastStateUpdate = 0.
@@ -453,9 +486,12 @@ class PyStateComposer(PyTango.Device_4Impl):
             self.info('IgnoreList:%s'%self.IgnoreList)
     
             self.add_event = threading.Event()
+            
+            # Adding devices from subcomposer devices
             def add_all(obj=self,wait=True):
                 while wait and not obj.__initialized: 
                     obj.add_event.wait(.1)
+
                 if obj.SubComposers:
                     obj.SubComposers = [s for s in obj.SubComposers if s]
                     print 'Adding devices from SubComposers list (%s)'%obj.SubComposers
@@ -466,13 +502,16 @@ class PyStateComposer(PyTango.Device_4Impl):
                         obj.SubComposers[composer] = {}
                         obj.AddDeviceToList(composer)
                         if wait: obj.add_event.wait(.1)
+
                 print 'Adding devices from DevicesList(%s(%s))'%(type(self.DevicesList),self.DevicesList)
                 for device in obj.DevicesList:
                     if obj.add_event.is_set(): break
                     obj.AddDeviceToList(device)
                     if wait: obj.add_event.wait(.1)
+
                 print('Ready to process events ...')
                 return
+            
             if False:
                 self.add_thread = threading.Thread(target=add_all)
                 self.add_thread.setDaemon(False)#True)
@@ -658,6 +697,9 @@ class PyStateComposer(PyTango.Device_4Impl):
         self.info('StatePolicy set to: %s' % str(self.StatePolicy))
         return
 
+    def UpdateStates(self):
+        #self.evaluateStates()
+        return
 
 #==================================================================
 #
@@ -673,30 +715,30 @@ class PyStateComposerClass(PyTango.DeviceClass):
 
     #    Device Properties
     device_property_list = {
-        'DynamicAttributes':
-            [PyTango.DevVarStringArray,
-            "Attributes and formulas to create for this device.<br>This Tango Attributes will be generated dynamically using this syntax:<br>&nbsp;AllPressures=DevVarDoubleArray([XAttr(dev+'/Pressure') or 0 for dev in DEVICES])",
-            [] ],
-        'DynamicStates':
-            [PyTango.DevVarStringArray,
-            "This property will allow to declare new States dinamically based on dynamic attributes changes:<br>&nbsp;FAULT=any([s==FAULT for s in STATES])<br>&nbsp;ON=1",
-            [] ],
-        'DynamicStatus':
-            [PyTango.DevVarStringArray,
-            "Each line generated by this property code will be added to status",
-            [] ],
-        'CheckDependencies':
-            [PyTango.DevBoolean,
-            "This property manages if dependencies between attributes are used to check readability.",
-            [False] ], #This property is normally True for other Dynamic Devices
+        #'DynamicAttributes':
+            #[PyTango.DevVarStringArray,
+            #"Attributes and formulas to create for this device.<br>This Tango Attributes will be generated dynamically using this syntax:<br>&nbsp;AllPressures=DevVarDoubleArray([XAttr(dev+'/Pressure') or 0 for dev in DEVICES])",
+            #[] ],
+        #'DynamicStates':
+            #[PyTango.DevVarStringArray,
+            #"This property will allow to declare new States dinamically based on dynamic attributes changes:<br>&nbsp;FAULT=any([s==FAULT for s in STATES])<br>&nbsp;ON=1",
+            #[] ],
+        #'DynamicStatus':
+            #[PyTango.DevVarStringArray,
+            #"Each line generated by this property code will be added to status",
+            #[] ],
+        #'CheckDependencies':
+            #[PyTango.DevBoolean,
+            #"This property manages if dependencies between attributes are used to check readability.",
+            #[False] ], #This property is normally True for other Dynamic Devices
         'PollingCycle':
             [PyTango.DevLong,
             "Default period for polling all device states.",
             [ 3000 ] ],
-        'UseEvents':
-            [PyTango.DevVarStringArray,
-            "This property allows to enable/disable events management.",
-            [ 'false' ] ],
+        #'UseEvents':
+            #[PyTango.DevVarStringArray,
+            #"This property allows to enable/disable events management.",
+            #[ 'false' ] ],
         'DevicesList':
             [PyTango.DevVarStringArray,
             "A list of device names, wildcards like domain/family/* are allowed.<br>If this property is not initialized DeviceNameList is read instead.",
@@ -739,6 +781,13 @@ class PyStateComposerClass(PyTango.DeviceClass):
         'UpdateStatePolicy':
             [[PyTango.DevVoid, "Reloads StatePolicy from the database"],
             [PyTango.DevVoid, ""]],
+        'UpdateStates':
+            [[PyTango.DevVoid, "Updates States Values"],
+            [PyTango.DevVoid, ""],
+            {
+                'Display level':PyTango.DispLevel.EXPERT,
+                'Polling period': 3000,
+            } ],
         }
 
 
@@ -790,14 +839,19 @@ class PyStateComposerClass(PyTango.DeviceClass):
 #
 #==================================================================
 
-PyStateComposer,PyStateComposerClass=FullTangoInheritance('PyStateComposer',PyStateComposer,PyStateComposerClass,DynamicDS,DynamicDSClass,ForceDevImpl=True)
-PyStateComposer,PyStateComposerClass=FullTangoInheritance('PyStateComposer',PyStateComposer,PyStateComposerClass,Dev4Tango,PyTango.DeviceClass,ForceDevImpl=False)
+PyStateComposer,PyStateComposerClass=FullTangoInheritance('PyStateComposer',
+    PyStateComposer,PyStateComposerClass,DynamicDS,DynamicDSClass,
+    ForceDevImpl=True)
+#PyStateComposer,PyStateComposerClass=FullTangoInheritance('PyStateComposer',
+    #PyStateComposer,PyStateComposerClass,Dev4Tango,PyTango.DeviceClass,
+    #ForceDevImpl=False)
 
 def main():
     #@staticmethod
     #def main():
     try:
-        py = ('PyUtil' in dir(PyTango) and PyTango.PyUtil or PyTango.Util)(sys.argv)
+        #py = ('PyUtil' in dir(PyTango) and PyTango.PyUtil or PyTango.Util)(sys.argv)
+        py = PyTango.Util(sys.argv)
         py.add_TgClass(PyStateComposerClass,PyStateComposer,'PyStateComposer')        
         U = PyTango.Util.instance()
         CreateDynamicCommands(PyStateComposer,PyStateComposerClass)
