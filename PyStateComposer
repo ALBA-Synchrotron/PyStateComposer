@@ -1,9 +1,13 @@
 #!/bin/sh
 
-. alba_blissrc
-
 cd /usr/share/tangods-pystatecomposer/PyStateComposer/
-script /dev/null
+python PyStateComposer.py $1 $2
+
+#suse launcher
+#. alba_blissrc
+#script /dev/null
 # Or just run sudo -u bob script -q -c 'screen -dr myscreen' /dev/null
-screen -dm -S PyStateComposer-$1 python PyStateComposer.py $1 $2
+#screen -dm -S PyStateComposer-$1 python PyStateComposer.py $1 $2
+
+
 
