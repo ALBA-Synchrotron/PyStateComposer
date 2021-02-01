@@ -177,8 +177,8 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
                 if att == 'state' and (self.DevicesDict.get(dev_name)!=value 
                         or str(etype).lower()=='error'):
                     self.DevicesDict[dev_name] = fun.notNone(value,PyTango.DevState.UNKNOWN)
-                    if self.__initialized: 
-                        self.evaluateStates()
+                    #if self.__initialized: 
+                        #self.evaluateStates()
         except:
             self.cout('error','Exception in event_received(%s,%s,...):\n%s'%(source,type_,traceback.format_exc()))
             
@@ -530,15 +530,15 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
         #print "In ", self.get_name(), "::always_executed_hook()"
         self.debug("In ::always_executed_hook()")
         DynamicDS.always_executed_hook(self)
-        if (self.LastStateCheck+1e-3*self.PollingCycle)<time.time():
-            self.evaluateStates()
-        else:
-            self._locals['DEVICES'] = CaselessList(self.DevicesDict.keys())
-            if self.SortLists: self._locals['DEVICES'] = sorted(self._locals['DEVICES'])
-            self._locals['STATES'].update(self.DevicesDict.items())
-            for v in self.DevicesDict.values():
-              # States will also contain a counter of occurrences for each state
-              self._locals['STATES'][str(v)] = 1+self._locals['STATES'].get(str(v),0)
+        #if (self.LastStateCheck+1e-3*self.PollingCycle)<time.time():
+            #self.evaluateStates()
+        #else:
+        self._locals['DEVICES'] = CaselessList(self.DevicesDict.keys())
+        if self.SortLists: self._locals['DEVICES'] = sorted(self._locals['DEVICES'])
+        self._locals['STATES'].update(self.DevicesDict.items())
+        for v in self.DevicesDict.values():
+            # States will also contain a counter of occurrences for each state
+            self._locals['STATES'][str(v)] = 1+self._locals['STATES'].get(str(v),0)
 
 #==================================================================
 #
@@ -656,7 +656,7 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
             self.Devices[argin].dp.unsubscribe_event(self.Devices[argin].event_id)
             self.Devices.pop(argin)
             print "\t",self.get_name(),"::RemoveDevice(",argin,"): device unsuscribed and removed from list!"
-            self.evaluateStates()
+            #self.evaluateStates()
 
 #------------------------------------------------------------------
 #    UpdateStatePolicy command:
@@ -698,7 +698,7 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
         return
 
     def UpdateStates(self):
-        #self.evaluateStates()
+        self.evaluateStates()
         return
 
 #==================================================================
