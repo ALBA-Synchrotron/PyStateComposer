@@ -279,6 +279,7 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
 
             for k,v in self.DevicesDict.items():
                 if fn.matchAny(self.IgnoreList,k.lower()):
+                    self._locals['IGNORED'].append(k.lower())
                     continue
                 
                 #Checking dead_threads
@@ -319,8 +320,6 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
                     #elif av.value not in (None,PyTango.DevState.UNKNOWN):
                     self.cout('error','Exception in evaluateStates(%s)'%a)
                     print traceback.format_exc()
-                        
-                else: self._locals['IGNORED'].append(k.lower())
             
             # To sort the values we use the priority for each state; obtained using the state name from self.TangoStates
             # The highest priority (last) will give the new_state
@@ -434,26 +433,27 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
                 raise Exception("Recursive composing is not allowed.")
             if dev_name in self.DevicesDict:
                 raise Exception("%s already subscribed" % dev_name)
-            if fn.matchAny(self.IgnoreList,dev_name):
-                return False
 
             self.DevicesDict[dev_name] = PyTango.DevState.INIT
-            #self.subscribe_external_attributes(dev_name,['State'])
-            aname = dev_name + '/state'
-            #at = fn.callbacks.EventSource(aname,log_level='INFO',
-                #keeptime=250,polling_period=self.PollingCycle)
-            #self.info('Adding Listener to %s(%s)'%(type(at),aname))
-            #at.addListener(self.event_received,use_polling=self.PollingCycle)
-            try:
-                #dp = fn.get_device(dev_name,keep=True)
-                dp = TangoProxies[dev_name]
-                at = dp.subscribe_event('state',EventType.CHANGE_EVENT,self.event_received)
-            except:
-                self.error('Unable to subscribe to %s: %s' % (argin,traceback.format_exc()))
-                at = None
+            if not fn.matchAny(self.IgnoreList,dev_name):
+                try:
+                    aname = dev_name + '/state'
+                    #self.subscribe_external_attributes(dev_name,['State'])
+                    #at = fn.callbacks.EventSource(aname,log_level='INFO',
+                        #keeptime=250,polling_period=self.PollingCycle)
+                    #self.info('Adding Listener to %s(%s)'%(type(at),aname))
+                    #at.addListener(self.event_received,use_polling=self.PollingCycle)
+                    
+                    #dp = fn.get_device(dev_name,keep=True)
+                    dp = TangoProxies[dev_name]
+                    at = dp.subscribe_event('state',EventType.CHANGE_EVENT,self.event_received)
+                except:
+                    self.error('Unable to subscribe to %s: %s' % (argin,traceback.format_exc()))
+                    at = None
 
-            self.EventSources[aname] = at
-            self.create_state_attribute(argin)
+                self.EventSources[aname] = at
+                self.create_state_attribute(argin)
+
             return True
         
         except Exception,e:
