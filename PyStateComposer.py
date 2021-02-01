@@ -241,10 +241,10 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
         dead_thread = 0
         now = time.time()
         states = []
-        self.LastStateCheck = now
         new_state = old_state = self.get_state()
         try:
             #publishing Devices and States for Dynamic Attributes and States
+            self.LastStateCheck = now            
             self._locals['DEVICES'] = CaselessList(self.DevicesDict.keys())
             if self.SortLists: self._locals['DEVICES'] = sorted(self._locals['DEVICES'])
             self._locals['STATES'] = self.DevicesDict.copy()
@@ -471,6 +471,14 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
             self.LastStateUpdate = 0.
             self.last_event_received = 0.
             self.set_change_event('State',True,True)
+            
+            #publishing Devices and States for Dynamic Attributes and States
+            self._locals['DEVICES'] = CaselessList(self.DevicesDict.keys())
+            if self.SortLists: self._locals['DEVICES'] = sorted(self._locals['DEVICES'])
+            self._locals['STATES'] = self.DevicesDict.copy()
+            self._locals['CHECK'] = self.checkState
+            self._locals['IGNORED'] = []
+            
             
             self.info('Updating Device Properties ...')
             default_props = {
