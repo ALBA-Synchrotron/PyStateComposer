@@ -397,7 +397,7 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
                     aname = dev_name + '/state'
                     at = fandango.callbacks.EventSource(aname,log_level='INFO',
                         keeptime=250,polling_period=self.PollingCycle)
-                    at.setLogLevel('DEBUG')
+                    #at.setLogLevel('DEBUG')
                     self.info('Adding Listener to %s(%s)'%(type(at),aname))
                     at.addListener(self.event_received,use_polling=self.PollingCycle)
                     self.EventSources[aname] = at
