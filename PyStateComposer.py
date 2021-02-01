@@ -52,7 +52,8 @@ from fandango import DynamicDS,DynamicDSClass,DynamicAttribute
 from fandango.interface import FullTangoInheritance
 from fandango.dynamic import CreateDynamicCommands,USE_STATIC_METHODS
 from fandango.tango import (fakeAttributeValue,parse_tango_model,EventType,
-    get_device,get_database,get_matching_devices,fakeEventType,AttrQuality,DevState)
+    get_device,get_database,get_matching_devices,fakeEventType,
+    AttrQuality,DevState,TangoProxies)
 
 from fandango import CaselessList
 
@@ -301,7 +302,7 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
                                 #a,v,last,av.quality,av.dim_x,av.dim_y)
                         try: 
                             #v = av.read(cache=False).value
-                            v = fn.get_device(k,keep=True).state()
+                            v = TangoProxies[k].read_attribute('state').value
                         except: 
                             self.error(traceback.format_exc())
                             v = PyTango.DevState.UNKNOWN
@@ -444,7 +445,8 @@ class PyStateComposer(PyTango.LatestDeviceImpl):
             #self.info('Adding Listener to %s(%s)'%(type(at),aname))
             #at.addListener(self.event_received,use_polling=self.PollingCycle)
             try:
-                dp = fn.get_device(dev_name,keep=True)
+                #dp = fn.get_device(dev_name,keep=True)
+                dp = TangoProxies[dev_name]
                 at = dp.subscribe_event('state',EventType.CHANGE_EVENT,self.event_received)
             except:
                 self.error('Unable to subscribe to %s: %s' % (argin,traceback.format_exc()))
